@@ -25,15 +25,20 @@ if the emoji exists, remove it and proceed \
 @click.option(
     "-i", "--interactive", is_flag=True, help="prompt before overwrite"
 )
+
+
+def is_ascii(s):
+    return all(ord(c) < 128 for c in s)
+
+
 @parse_global_options
 def cli(ctx, images, force, no_clobber, interactive):
     emojis = []
 
-    try:
-        with click.progressbar(images, show_pos=True) as pb_images:
-            for image in pb_images:
+    with click.progressbar(images, show_pos=True) as pb_images:
+        for image in pb_images:
+            try:
                 emoji = Emoji(ctx.mattermost, image.name)
-
                 if emoji.emoji and not no_clobber and interactive:
                     force = click.confirm(
                         'overwrite "{}"?'.format(emoji.name), err=True
@@ -44,7 +49,6 @@ def cli(ctx, images, force, no_clobber, interactive):
                 with image as img:
                     if emoji.create(img, force, no_clobber):
                         emojis.append(emoji.emoji)
-    except HTTPError as e:
-        raise click.ClickException(e.args if e.args != () else repr(e))
-    finally:
-        ctx.print_dict(emojis)
+            except HTTPError as e:
+                print(f"Failed in {image.name}")
+    ctx.print_dict(emojis)
